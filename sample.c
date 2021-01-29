@@ -1,14 +1,11 @@
 #include <stdio.h>
 
-
 int main(int argc, char **argv) 
-
+{
 	int a = -1;
 	float i = 1.0, b, sum = 0;
-
-	{
-	while (i <= 100) 
-		{
+	
+	while (i <= 100) {
 		a = -a;
 		b = (1 / i) * a;
 
