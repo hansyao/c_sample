@@ -15,9 +15,8 @@ void main(int argc, char **argv)
 		scanf("%d", &Password);
 	}
 
-	i=0;
-	while( Number != price )
-	{
+	i = 0;
+	while( Number != price ){
 		do {
 			puts("Please input a number between 1 and 100: ");
 			scanf("%d",&Number);
@@ -33,18 +32,15 @@ void main(int argc, char **argv)
 		else if( Number >= 1 && Number <= 30 ) {
 			printf("Too Small! Press any key to try again!\n");
 		}
-		else if( Number > 30 && Number <= 50 )
-		{
+		else if( Number > 30 && Number <= 50 ){
 			printf("Small! Press any key to try again!\n");
 		}
-		else
-		{
+		else{
 			if( Number == price ){
 				printf("OK! You are right! Bye Bye!\n");
 			}
 			else if( Number < price ){
 				printf("Sorry,Only a little smaller! Press any key to try again!\n");
-
 			}
 			else if( Number > price )
 				printf(" Sorry, Only a little bigger! Press any key to try again!\n");
