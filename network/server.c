@@ -17,10 +17,10 @@
 直到有客户端连接，
 当客户端如数quit后，断开与客户端的连接
 */
-int main()
+int main(int argc, char **argv)
 {
     //调用socket函数返回的文件描述符
-    int serverSocket;
+    int serverSocket;           //socket句柄
     //声明两个套接字sockaddr_in结构体变量，分别表示客户端和服务器
     struct sockaddr_in server_addr;
     struct sockaddr_in clientAddr;
