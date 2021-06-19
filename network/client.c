@@ -41,14 +41,14 @@ int start_client(char *nickname)
 
 	send(clientSocket,nickname,strlen(nickname)+1,0);
 	pid_t pid = fork();
-	if(pid == -1){
+	if(pid == -1) {
 		perror("fork");	
 		return -1;
 	}
 
     //send message
-	if(pid == 0){
-		while(1){
+	if(pid == 0) {
+		while(1) {
 
             printf("%s: ",nickname);
 			char sendbuffer[1024];

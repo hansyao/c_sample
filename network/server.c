@@ -58,7 +58,7 @@ int start_server()
 		
 		printf("waiting for connecting....\n");
 		int cfd = accept(serverSocket,(struct sockaddr*)(&caddr),&len);
-		if(cfd == -1){
+		if(cfd == -1) {
 			perror("accept");
 			return -1;
 		}
@@ -90,8 +90,8 @@ void broadcast(char *msg,Client c)
 	size_t i;
 	pthread_mutex_lock(&mutex);
 	for(i=0;i<cnt;i++) {
-		if(client[i].cfd != c.cfd){
-			if(send(client[i].cfd,msg,strlen(msg),0)<=0){
+		if(client[i].cfd != c.cfd) {
+			if(send(client[i].cfd,msg,strlen(msg),0)<=0) {
 				break;
 			}
 		}
@@ -102,15 +102,15 @@ void broadcast(char *msg,Client c)
 void *pthread_run(void *arg)
 {
 	Client cl = *(Client*)(arg);
-	while(1){
+	while(1) {
 		char buffer[1024]={};
 		strcpy(buffer, cl.nickname);
 		strcat(buffer, ": ");
 		int ret = recv(cl.cfd,buffer+strlen(buffer),1024-strlen(buffer),0);
-		if(ret <= 0){
+		if(ret <= 0) {
 			size_t i;
-			for(i=0;i<cnt;i++){
-				if(client[i].cfd == cl.cfd){
+			for(i=0;i<cnt;i++) {
+				if(client[i].cfd == cl.cfd) {
 					client[i] = client[cnt-1];
 					--cnt;
 					strcpy(buffer,"user->");
@@ -128,7 +128,7 @@ void *pthread_run(void *arg)
 			close(cl.cfd);
 			return NULL;
 		}
-		else{
+		else {
 			broadcast(buffer,cl);
 			printf("%s", buffer);
 			// send(cl.cfd,buffer,strlen(buffer),0);
