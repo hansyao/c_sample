@@ -1,8 +1,8 @@
-[server]
+# server
 SERVER_IP = 127.0.0.1
 SERVER_PORT = 6666
 
-[client]
+# client
 NICKNAME = hansyao
 PASSWORD = admin
 

@@ -1,13 +1,15 @@
 #include <unistd.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <pthread.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
-#include "config.h"
+#include "chat.h"
 
 #define MAX 100
 typedef struct Client {
@@ -26,16 +28,28 @@ int start_server()
 {
 	char SERVER_PORT[100];
 	char SERVER_IP[100];
+	int serverSocket, ret;
 
-	int serverSocket = socket(AF_INET,SOCK_STREAM,0);
-	if(serverSocket == -1) {
-		perror("socket");
-		return -1;
+	serverSocket = socket(AF_INET,SOCK_STREAM,0);
+	if(serverSocket < 0) {
+		fprintf(stderr, "%s: Unable to create socket\n", __func__);
+		return -ENOMEM;
 	}
 
-	// get server config from configfile 
-    GetIniKeyString("server","SERVER_IP",CONFIGFILE, SERVER_IP);
-    GetIniKeyString("server","SERVER_PORT",CONFIGFILE, SERVER_PORT);
+        /* Server IP and port from config file */
+	ret = chat_get_config("SERVER_IP", SERVER_IP);
+	if (ret) {
+		fprintf(stderr, "%s: Error %d to get SERVER_IP\n",
+			__func__, ret);
+		return ret;
+	}
+
+	ret = chat_get_config("SERVER_PORT", SERVER_PORT);
+	if (ret) {
+		fprintf(stderr, "%s: Error %d to get SERVER_PORT\n",
+			__func__, ret);
+		return ret;
+	}
 
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
@@ -43,7 +57,7 @@ int start_server()
 	addr.sin_addr.s_addr = inet_addr(SERVER_IP);
 	socklen_t addrlen = sizeof(addr);
 
-	int ret = bind(serverSocket,(struct sockaddr*)(&addr),addrlen);
+	ret = bind(serverSocket,(struct sockaddr*)(&addr),addrlen);
 	if(ret == -1) {
 		perror("bind");
 		return -1;
