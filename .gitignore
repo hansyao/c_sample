@@ -1,7 +1,8 @@
 # Ignore `bin` dir
 bin/
 # or
-*/bin/*backup/
+*/bin/*
+backup/
 test
 test.c
 test.md
