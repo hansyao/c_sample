@@ -18,16 +18,66 @@ typedef struct Client {
 }Client;
 Client client[MAX] = {};
 
-static void *pthread_run(void *arg);
-static void broadcast(char *msg,Client c);
-
 size_t cnt = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void broadcast(char *msg,Client c)
+{
+	size_t i;
+	pthread_mutex_lock(&mutex);
+	for(i=0;i<cnt;i++) {
+		if(client[i].cfd != c.cfd) {
+			if(send(client[i].cfd,msg,strlen(msg),0)<=0) {
+				break;
+			}
+		}
+	}
+	pthread_mutex_unlock(&mutex);
+}
+
+static void *pthread_run(void *arg)
+{
+	char buffer[1024]={};
+
+	Client cl = *(Client*)(arg);
+	while(1) {
+		strcpy(buffer, cl.nickname);
+		strcat(buffer, ": ");
+		int ret = recv(cl.cfd,buffer+strlen(buffer),1024-strlen(buffer),0);
+		if(ret <= 0) {
+			size_t i;
+			for(i=0;i<cnt;i++) {
+				if(client[i].cfd == cl.cfd) {
+					client[i] = client[cnt-1];
+					--cnt;
+					strcpy(buffer,"user->");
+					strcat(buffer,cl.nickname);
+					strcat(buffer," exited!");
+
+					time_t timep;
+					time(&timep);
+					printf("%s at %s", buffer, ctime(&timep));
+					printf("\n");
+					break;
+				}
+			}
+			broadcast(buffer,cl);
+			close(cl.cfd);
+			return NULL;
+		}
+		else {
+			broadcast(buffer,cl);
+			printf("%s", buffer);
+			// send(cl.cfd,buffer,strlen(buffer),0);
+		}
+	}
+}
 
 int start_server()
 {
 	char SERVER_PORT[100];
 	char SERVER_IP[100];
+	char buffer[100];
 	int serverSocket, ret;
 
 	serverSocket = socket(AF_INET,SOCK_STREAM,0);
@@ -76,7 +126,7 @@ int start_server()
 			perror("accept");
 			return -1;
 		}
-		char buffer[100]={};
+		
 		recv(cfd,&client[cnt].nickname,40,0);
 		client[cnt].cfd = cfd;
 		pthread_t id;
@@ -92,60 +142,6 @@ int start_server()
 			printf("pthread_create:%s\n",strerror(ret));
 			continue;
 		}
-		// printf("有一个客户机成功连接:ip <%s> port [%hu] nickname: %s\n",inet_ntoa(caddr.sin_addr),ntohs(caddr.sin_port), client[cnt].nickname);
 	}
 	return 0;
-}
-
-
-
-void broadcast(char *msg,Client c)
-{
-	size_t i;
-	pthread_mutex_lock(&mutex);
-	for(i=0;i<cnt;i++) {
-		if(client[i].cfd != c.cfd) {
-			if(send(client[i].cfd,msg,strlen(msg),0)<=0) {
-				break;
-			}
-		}
-	}
-	pthread_mutex_unlock(&mutex);
-}
-
-void *pthread_run(void *arg)
-{
-	Client cl = *(Client*)(arg);
-	while(1) {
-		char buffer[1024]={};
-		strcpy(buffer, cl.nickname);
-		strcat(buffer, ": ");
-		int ret = recv(cl.cfd,buffer+strlen(buffer),1024-strlen(buffer),0);
-		if(ret <= 0) {
-			size_t i;
-			for(i=0;i<cnt;i++) {
-				if(client[i].cfd == cl.cfd) {
-					client[i] = client[cnt-1];
-					--cnt;
-					strcpy(buffer,"user->");
-					strcat(buffer,cl.nickname);
-					strcat(buffer," exited!");
-
-					time_t timep;
-					time(&timep);
-					printf("%s at %s", buffer, ctime(&timep));
-					printf("\n");
-					break;
-				}
-			}
-			broadcast(buffer,cl);
-			close(cl.cfd);
-			return NULL;
-		}
-		else {
-			broadcast(buffer,cl);
-			printf("%s", buffer);
-			// send(cl.cfd,buffer,strlen(buffer),0);
-		}
-	}
 }
