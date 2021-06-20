@@ -86,7 +86,7 @@ int start_client(char *nickname)
 					break;
 				}
 			}
-			if(send(clientSocket,sendbuffer,strlen(sendbuffer),0)<=0) {
+			if(send(clientSocket,sendbuffer,strlen(sendbuffer)+1,0)<=0) {
 				break;	
 			}
 		}
