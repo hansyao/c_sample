@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/wait.h>
 
 #include "chat.h"
 
@@ -14,7 +15,10 @@ int start_client(char *nickname)
 {
 	char SERVER_PORT[100];
 	char SERVER_IP[100];
-	int clientSocket, ret;
+	int clientSocket, ret, fd[2];
+
+	char sendbuffer[1024], recvbuffer[1024];
+	char buf[100], state[64];
 
 	clientSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (clientSocket < 0) {
@@ -52,6 +56,13 @@ int start_client(char *nickname)
 	printf("Your nickname: %s\n",nickname);
 
 	send(clientSocket,nickname,strlen(nickname)+1,0);
+
+	int retp=pipe(fd); 
+	if(retp==-1) {
+		fprintf(stderr, "%s: Unable to create pipe\n", __func__);
+		return -ENOMEM;
+	}
+
 	pid_t pid = fork();
 	if(pid == -1) {
 		perror("fork");	
@@ -61,15 +72,19 @@ int start_client(char *nickname)
     //send message
 	if(pid == 0) {
 		while(1) {
-
             printf("%s: ",nickname);
-			char sendbuffer[1024];
-			// gets(buffer);
-            fgets(sendbuffer,1024,stdin);
-			// scanf("%s", sendbuffer);
-			if (strcmp(sendbuffer,"quit\n") == 0) {
-				close(clientSocket);
-				exit(0);
+            fgets(sendbuffer,sizeof(sendbuffer),stdin);
+			if (strcmp(sendbuffer,COMMAND_QUIT) == 0) {
+				printf("do you wanna quit? (\"y\"->quit; any key continue) :");
+				fgets(buf, sizeof(buf), stdin);
+				if (strcmp(buf,"y\n") == 0){
+					/* define pipe val in parent pid */
+					close(fd[0]);
+					char *state = COMMAND_QUIT;
+					write(fd[1],state,strlen(state));
+					wait(NULL);
+					break;
+				}
 			}
 			if(send(clientSocket,sendbuffer,strlen(sendbuffer),0)<=0) {
 				break;	
@@ -80,10 +95,15 @@ int start_client(char *nickname)
     //receive message
     else{
 		while(1) {
-			char recvbuffer[1024]={};
-			if(recv(clientSocket,recvbuffer,1024,0)<=0) {
+			/* read pipe status from child pid */
+			close(fd[1]);
+			ret = read(fd[0],state,sizeof(state));
+			write(STDOUT_FILENO,state,ret);			//convert to standard output
+
+			if (strcmp(state,COMMAND_QUIT) == 0)
 				break;
-			}
+			if(recv(clientSocket,recvbuffer,1024,0)<=0)
+				break;
 			time_t timep;
 			time(&timep);
 			printf("%s\n",ctime(&timep));
