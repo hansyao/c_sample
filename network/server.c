@@ -11,23 +11,18 @@
 
 #include "chat.h"
 
-#define MAX 100
-typedef struct Client {
-	int cfd;
-	char nickname[40];
-}Client;
-Client client[MAX] = {};
+Client client[MAX];
 
 size_t cnt = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static void broadcast(char *msg,Client c)
+static void broadcast(char *msg, Client c)
 {
 	size_t i;
 	pthread_mutex_lock(&mutex);
 	for(i=0;i<cnt;i++) {
 		if(client[i].cfd != c.cfd) {
-			if(send(client[i].cfd,msg,strlen(msg),0)<=0) {
+			if(send(client[i].cfd, msg, strlen(msg)+1,0)<=0) {
 				break;
 			}
 		}
@@ -43,15 +38,15 @@ static void *pthread_run(void *arg)
 	while(1) {
 		strcpy(buffer, cl.nickname);
 		strcat(buffer, ": ");
-		int ret = recv(cl.cfd,buffer+strlen(buffer),1024-strlen(buffer),0);
+		int ret = recv(cl.cfd, buffer + strlen(buffer), 1024-strlen(buffer), 0);
 		if(ret <= 0) {
 			size_t i;
 			for(i=0;i<cnt;i++) {
 				if(client[i].cfd == cl.cfd) {
-					client[i] = client[cnt-1];
+					client[i] = client[cnt - 1];
 					--cnt;
-					strcpy(buffer,"user->");
-					strcat(buffer,cl.nickname);
+					strcpy(buffer, "user->");
+					strcat(buffer, cl.nickname);
 					strcat(buffer," exited!");
 
 					time_t timep;
@@ -61,32 +56,25 @@ static void *pthread_run(void *arg)
 					break;
 				}
 			}
-			broadcast(buffer,cl);
+			broadcast(buffer, cl);
 			close(cl.cfd);
 			return NULL;
 		}
 		else {
-			broadcast(buffer,cl);
+			broadcast(buffer, cl);
 			printf("%s", buffer);
-			// send(cl.cfd,buffer,strlen(buffer),0);
+			// send(cl.cfd,buffer,strlen(buffer)+1,0);
 		}
 	}
 }
 
-int start_server()
+static int chat_serverinfo(serverinfo *serverinfo)
 {
+	int ret;
 	char SERVER_PORT[100];
 	char SERVER_IP[100];
-	char buffer[100];
-	int serverSocket, ret;
 
-	serverSocket = socket(AF_INET,SOCK_STREAM,0);
-	if(serverSocket < 0) {
-		fprintf(stderr, "%s: Unable to create socket\n", __func__);
-		return -ENOMEM;
-	}
-
-        /* Server IP and port from config file */
+	/* Server IP and port from config file */
 	ret = chat_get_config("SERVER_IP", SERVER_IP);
 	if (ret) {
 		fprintf(stderr, "%s: Error %d to get SERVER_IP\n",
@@ -101,42 +89,66 @@ int start_server()
 		return ret;
 	}
 
+	strcpy(serverinfo->SERVER_IP, SERVER_IP);
+	strcpy(serverinfo->SERVER_PORT, SERVER_PORT);
+	printf("SERVER_IP: %s  BIND_PORT: %s\n", serverinfo->SERVER_IP, serverinfo->SERVER_PORT);
+
+	return 0;
+
+};
+
+int start_server(void)
+{
+	char buffer[100];
+	int serverSocket, ret;
+
+	serverinfo serverinfo;
+
+	serverSocket = socket(AF_INET,SOCK_STREAM, 0);
+	if(serverSocket < 0) {
+		fprintf(stderr, "%s: Unable to create socket\n", __func__);
+		return -ENOMEM;
+	}
+
+	ret=chat_serverinfo(&serverinfo);
+	
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(atoi(SERVER_PORT));
-	addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+	addr.sin_port = htons(atoi(serverinfo.SERVER_PORT));
+	addr.sin_addr.s_addr = inet_addr(serverinfo.SERVER_IP);
 	socklen_t addrlen = sizeof(addr);
 
-	ret = bind(serverSocket,(struct sockaddr*)(&addr),addrlen);
+	ret = bind(serverSocket, (struct sockaddr*)(&addr), addrlen);
 	if(ret == -1) {
 		perror("bind");
 		return -1;
 	}
-	if(listen(serverSocket,10)==-1) {
+	if(listen(serverSocket,10) == -1) {
 		perror("listen");
 		return -1;
 	}
 	while(1) {
+
 		struct sockaddr_in caddr;
 		socklen_t len = sizeof(caddr);
-		
+
 		printf("waiting for connecting....\n");
-		int cfd = accept(serverSocket,(struct sockaddr*)(&caddr),&len);
+		int cfd = accept(serverSocket, (struct sockaddr*)(&caddr), &len);
 		if(cfd == -1) {
 			perror("accept");
 			return -1;
 		}
 		
-		recv(cfd,&client[cnt].nickname,40,0);
+		recv(cfd, &client[cnt].nickname, 40, 0);
 		client[cnt].cfd = cfd;
 		pthread_t id;
 		strcpy(buffer,"user->");
-		strcat(buffer,client[cnt].nickname);
+		strcat(buffer, client[cnt].nickname);
 		strcat(buffer," is online! ");
 
 		printf("%s(ip <%s> port [%hu])\n", buffer,inet_ntoa(caddr.sin_addr),ntohs(caddr.sin_port));
 		broadcast(buffer,client[cnt]);
-		ret = pthread_create(&id,NULL,pthread_run,(void*)(&client[cnt]));
+		ret = pthread_create(&id, NULL, pthread_run, (void*)(&client[cnt]));
 		cnt++;
 		if(ret != 0) {
 			printf("pthread_create:%s\n",strerror(ret));
