@@ -14,10 +14,10 @@
 Client client[MAX];
 
 size_t cnt = 0;
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void broadcast(char *msg, Client c)
 {
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 	size_t i;
 	pthread_mutex_lock(&mutex);
 	for(i=0;i<cnt;i++) {
@@ -74,8 +74,9 @@ static void *pthread_run(void *arg)
 		}
 		else {
 			broadcast(buffer, cl);
-			printf("%s", buffer);
-			// send(cl.cfd,buffer,strlen(buffer)+1,0);
+			time_t timep;
+			time(&timep);			
+			printf("%sTIME: %s\n", buffer, ctime(&timep));
 		}
 	}
 }
@@ -87,6 +88,10 @@ int start_server(void)
 	int serverSocket, ret;
 
 	serverinfo serverinfo;
+	struct sockaddr_in addr;
+	struct sockaddr_in caddr;
+	socklen_t len = sizeof(caddr);
+	socklen_t addrlen = sizeof(addr);
 
 	serverSocket = socket(AF_INET,SOCK_STREAM, 0);
 	if(serverSocket < 0) {
@@ -97,11 +102,9 @@ int start_server(void)
 	/* Server IP and port from config file */
 	ret=chat_serverinfo(&serverinfo);
 	
-	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(atoi(serverinfo.SERVER_PORT));
 	addr.sin_addr.s_addr = inet_addr(serverinfo.SERVER_IP);
-	socklen_t addrlen = sizeof(addr);
 
 	ret = bind(serverSocket, (struct sockaddr*)(&addr), addrlen);
 	if(ret == -1) {
@@ -113,10 +116,6 @@ int start_server(void)
 		return -1;
 	}
 	while(1) {
-
-		struct sockaddr_in caddr;
-		socklen_t len = sizeof(caddr);
-		char *nickname;
 
 		printf("waiting for connecting....\n");
 		int cfd = accept(serverSocket, (struct sockaddr*)(&caddr), &len);

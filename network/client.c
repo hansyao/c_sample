@@ -62,19 +62,28 @@ int start_client(char *nickname)
 
     //send message
 	if(pid == 0) {
+
 		while(1) {
             printf("%s: ", nickname);
             fgets(sendbuffer, sizeof(sendbuffer), stdin);
+            time_t timep;
+			time(&timep);
+            printf("TIME: %s",ctime(&timep));
 			if (strcmp(sendbuffer, COMMAND_QUIT) == 0) {
 				printf("do you wanna quit? (\"y\"->quit; any key continue) :");
 				fgets(buf, sizeof(buf), stdin);
 				if (strcmp(buf,"y\n") == 0){
 					/* define pipe val in parent process */
+                    /*
 					close(fd[0]);
 					write(fd[1], state, strlen(state));
 					waitpid(pid, NULL, 0);
 					close(fd[1]);
+                    */
+                    
+                    shutdown(clientSocket,1);
 					break;
+                    
 				}
 			}
 			if(send(clientSocket, sendbuffer, strlen(sendbuffer)+1, 0) <= 0) {
@@ -86,26 +95,28 @@ int start_client(char *nickname)
     //receive message
     else{
 
-		/* read pipe status from child process */			
-		close(fd[1]);
+		/* read pipe status from child process */
+
+        /*
+        close(fd[1]);
 		ret_fd = read(fd[0], buf, sizeof(buf));
 		if(ret_fd > 0) {
 			if (strcmp(buf, COMMAND_QUIT) == 0) {
-				close(clientSocket);
+				shutdown(clientSocket,1);
 				return 0;
 			}
 		}
-
+        */
+        
 		while(1) {
 			if(recv(clientSocket, recvbuffer, sizeof(recvbuffer), 0) <= 0)
 				break;
 			time_t timep;
 			time(&timep);
-			printf("%s <<<< %s\n", recvbuffer, ctime(&timep));
+			printf("%sTIME: %s\n", recvbuffer, ctime(&timep));
 		}
 	}
 
 	close(clientSocket);
 	return 0;	
 }
-
