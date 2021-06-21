@@ -87,7 +87,7 @@ int start_client(char *nickname)
     else{
 
 		/* read pipe status from child process */			
-		// close(fd[0]);
+		close(fd[1]);
 		ret_fd = read(fd[0], buf, sizeof(buf));
 		if(ret_fd > 0) {
 			if (strcmp(buf, COMMAND_QUIT) == 0) {

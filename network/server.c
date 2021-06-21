@@ -30,6 +30,18 @@ static void broadcast(char *msg, Client c)
 	pthread_mutex_unlock(&mutex);
 }
 
+static int verify_nickname(char *nickname)
+{
+	int i;
+
+	/* nickname duplicate: 1, otherwise: 0 */
+	for (i=0; i<cnt; i++) {
+		if (strcmp(nickname, client[i].nickname) == 0)
+		return 1;
+	}
+	return 0;
+}
+
 static void *pthread_run(void *arg)
 {
 	char buffer[1024]={};
@@ -104,6 +116,7 @@ int start_server(void)
 
 		struct sockaddr_in caddr;
 		socklen_t len = sizeof(caddr);
+		char *nickname;
 
 		printf("waiting for connecting....\n");
 		int cfd = accept(serverSocket, (struct sockaddr*)(&caddr), &len);
@@ -113,6 +126,16 @@ int start_server(void)
 		}
 		
 		recv(cfd, &client[cnt].nickname, 40, 0);
+		ret = verify_nickname(client[cnt].nickname);
+		if (ret == 1) {
+			strcpy(buffer, "Duplicated name ");
+			strcat(buffer, client[cnt].nickname);
+			strcat(buffer, "\n");
+			send(cfd, buffer, strlen(buffer),0);
+			close(cfd);
+			continue;
+		}
+
 		client[cnt].cfd = cfd;
 		pthread_t id;
 		strcpy(buffer,"user->");
@@ -127,6 +150,7 @@ int start_server(void)
 			printf("pthread_create:%s\n",strerror(ret));
 			continue;
 		}
+
 	}
 	return 0;
 }
