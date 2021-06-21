@@ -68,34 +68,6 @@ static void *pthread_run(void *arg)
 	}
 }
 
-static int chat_serverinfo(serverinfo *serverinfo)
-{
-	int ret;
-	char SERVER_PORT[100];
-	char SERVER_IP[100];
-
-	/* Server IP and port from config file */
-	ret = chat_get_config("SERVER_IP", SERVER_IP);
-	if (ret) {
-		fprintf(stderr, "%s: Error %d to get SERVER_IP\n",
-			__func__, ret);
-		return ret;
-	}
-
-	ret = chat_get_config("SERVER_PORT", SERVER_PORT);
-	if (ret) {
-		fprintf(stderr, "%s: Error %d to get SERVER_PORT\n",
-			__func__, ret);
-		return ret;
-	}
-
-	strcpy(serverinfo->SERVER_IP, SERVER_IP);
-	strcpy(serverinfo->SERVER_PORT, SERVER_PORT);
-	printf("SERVER_IP: %s  BIND_PORT: %s\n", serverinfo->SERVER_IP, serverinfo->SERVER_PORT);
-
-	return 0;
-
-};
 
 int start_server(void)
 {
@@ -110,6 +82,7 @@ int start_server(void)
 		return -ENOMEM;
 	}
 
+	/* Server IP and port from config file */
 	ret=chat_serverinfo(&serverinfo);
 	
 	struct sockaddr_in addr;

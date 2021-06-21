@@ -14,7 +14,9 @@ typedef struct Client {
 	char nickname[40];
 } Client;
 
-int chat_get_config(char *key, char *val);
+// int chat_get_config(char *key, char *val);
+int chat_serverinfo(serverinfo *serverinfo);
 int start_server(void);
 int start_client(char *nickname);
+
 

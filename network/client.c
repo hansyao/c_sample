@@ -17,10 +17,12 @@ int start_client(char *nickname)
 	char SERVER_PORT[100];
 	char SERVER_IP[100];
 	int clientSocket, ret, fd[2], ret_fd;
+	serverinfo serverinfo;
 
 	char sendbuffer[1024], recvbuffer[1024];
 	char buf[100];
 	int retp=pipe(fd); 
+	char *state = COMMAND_QUIT;
 
 	clientSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (clientSocket < 0) {
@@ -29,24 +31,12 @@ int start_client(char *nickname)
 	}
 	
 	/* Server IP and port from config file */
-	ret = chat_get_config("SERVER_IP", SERVER_IP);
-	if (ret) {
-		fprintf(stderr, "%s: Error %d to get SERVER_IP\n",
-			__func__, ret);
-		return ret;
-	}
-
-	ret = chat_get_config("SERVER_PORT", SERVER_PORT);
-	if (ret) {
-		fprintf(stderr, "%s: Error %d to get SERVER_PORT\n",
-			__func__, ret);
-		return ret;
-	}
+	ret=chat_serverinfo(&serverinfo);
 
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(atoi(SERVER_PORT));
-	addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+	addr.sin_port = htons(atoi(serverinfo.SERVER_PORT));
+	addr.sin_addr.s_addr = inet_addr(serverinfo.SERVER_IP);
 	socklen_t addrlen = sizeof(addr);
 
 	ret = connect(clientSocket, (const struct sockaddr*)(&addr), addrlen);
@@ -54,7 +44,7 @@ int start_client(char *nickname)
 		perror("connect");
 		return -1;
 	}
-	
+
 	printf("connect server successfully!\n");
 	printf("Your nickname: %s\n", nickname);
 	send(clientSocket, nickname, strlen(nickname)+1, 0);
@@ -81,7 +71,6 @@ int start_client(char *nickname)
 				if (strcmp(buf,"y\n") == 0){
 					/* define pipe val in parent process */
 					close(fd[0]);
-					char *state = COMMAND_QUIT;
 					write(fd[1], state, strlen(state));
 					waitpid(pid, NULL, 0);
 					close(fd[1]);
@@ -96,15 +85,17 @@ int start_client(char *nickname)
 
     //receive message
     else{
+
 		/* read pipe status from child process */			
-		close(fd[1]);
+		// close(fd[0]);
 		ret_fd = read(fd[0], buf, sizeof(buf));
-		if( ret_fd > 0) {
+		if(ret_fd > 0) {
 			if (strcmp(buf, COMMAND_QUIT) == 0) {
 				close(clientSocket);
 				return 0;
 			}
 		}
+
 		while(1) {
 			if(recv(clientSocket, recvbuffer, sizeof(recvbuffer), 0) <= 0)
 				break;
