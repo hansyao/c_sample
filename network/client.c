@@ -21,8 +21,8 @@ int start_client(char *nickname)
 
 	char sendbuffer[1024], recvbuffer[1024];
 	char buf[100];
-	int retp=pipe(fd); 
-	char *state = COMMAND_QUIT;
+	// int retp=pipe(fd); 
+	// char *state = COMMAND_QUIT;
 
 	clientSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (clientSocket < 0) {
@@ -49,10 +49,10 @@ int start_client(char *nickname)
 	printf("Your nickname: %s\n", nickname);
 	send(clientSocket, nickname, strlen(nickname)+1, 0);
 
-	if(retp == -1) {
-		fprintf(stderr, "%s: Unable to create pipe\n", __func__);
-		return -ENOMEM;
-	}
+	// if(retp == -1) {
+	// 	fprintf(stderr, "%s: Unable to create pipe\n", __func__);
+	// 	return -ENOMEM;
+	// }
 
 	pid_t pid = fork();
 	if(pid == -1) {
