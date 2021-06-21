@@ -46,7 +46,7 @@ int start_client(char *nickname)
 	}
 
 	printf("connect server successfully!\n");
-	printf("Your nickname: %s\n", nickname);
+	printf("Your nickname: %s\n\n", nickname);
 	send(clientSocket, nickname, strlen(nickname)+1, 0);
 
 	// if(retp == -1) {
@@ -68,7 +68,7 @@ int start_client(char *nickname)
             fgets(sendbuffer, sizeof(sendbuffer), stdin);
             time_t timep;
 			time(&timep);
-            printf("TIME: %s",ctime(&timep));
+            printf("TIME: %s\n",ctime(&timep));
 			if (strcmp(sendbuffer, COMMAND_QUIT) == 0) {
 				printf("do you wanna quit? (\"y\"->quit; any key continue) :");
 				fgets(buf, sizeof(buf), stdin);
