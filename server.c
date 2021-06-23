@@ -80,8 +80,7 @@ int start_server(void)
 	/*(4) initiate select*/
 	maxfd = serverinfo.sock;
 	maxi = -1;
-	for(i=0 ; i<FD_SETSIZE ; ++i)
-	{
+	for(i=0 ; i<FD_SETSIZE ; ++i) {
 		client[i].cfd = -1;
 	}
 	FD_ZERO(&allset);
@@ -89,31 +88,26 @@ int start_server(void)
  
 	/*(5) loop in server*/
 
-	while(1)
-	{
+	while(1) {
 		rset = allset;
-		nready = select(maxfd+1 , &rset , NULL , NULL , NULL);
+		nready = select(maxfd+1 , &rset, NULL, NULL, NULL);
 		
-		if(FD_ISSET(serverinfo.sock , &rset))
-		{
+		if(FD_ISSET(serverinfo.sock , &rset)) {
 			/* receive client requests*/
 			len = sizeof(caddr);
  
 			printf("\naccpet connection~\n");
  
-			if((cfd = accept(serverinfo.sock , (struct sockaddr *)&caddr , &len)) < 0)
-			{
+			if((cfd = accept(serverinfo.sock , (struct sockaddr *)&caddr , &len)) < 0) {
 				perror("accept error.\n");
 				exit(1);
-			}		
+			}
 
 			printf("accpet a new client: %s:%d\n", inet_ntoa(caddr.sin_addr) , caddr.sin_port);
  
 			/* add cfd to arrary */
-			for(i=0 ; i<FD_SETSIZE ; ++i)
-			{
-				if(client[i].cfd < 0)
-				{
+			for(i=0 ; i<FD_SETSIZE ; ++i) {
+				if(client[i].cfd < 0) {
 					/* get nickname */
 					recvlen = recv(cfd, buffer, sizeof(buffer), 0);
 					if(recvlen <= 0 || buffer == "\n")
@@ -151,8 +145,7 @@ int start_server(void)
 				}
 			}
  
-			if(FD_SETSIZE == i)
-			{
+			if(FD_SETSIZE == i) {
 				perror("too many connection.\n");
 				exit(1);
 			}
@@ -167,20 +160,16 @@ int start_server(void)
 				continue;
 		}
 
-		for(i=0; i<=maxi ; ++i)
-		{
-			// useroffline_check(i);
-
+		for(i=0; i<=maxi ; ++i) {
 			if((sockfd = client[i].cfd) < 0)
 				continue;
-			if(FD_ISSET(sockfd , &rset))
-			{
+			if(FD_ISSET(sockfd , &rset)) {
+				
 				/*process client request*/
 				printf("\nreading the socket~~~ \n");
 				
 				bzero(buffer , MAX_LINE);
-				if((n = read(sockfd , buffer, MAX_LINE)) <= 0)
-				{
+				if((n = read(sockfd , buffer, MAX_LINE)) <= 0) {
 					/* broadcast offline info */
 					printf("%s is offiline!\n", client[i].nickname);
 					broadcast(strcat(client[i].nickname, " is offline!\n"), &serverinfo);
@@ -192,7 +181,7 @@ int start_server(void)
 					FD_CLR(sockfd , &allset);
 					client[i].cfd = -1;
 				}
-				else{
+				else {
 					if(strcmp(buffer, "\n") == 0)
 						continue;
 					fprintf(stdout, "%s client[%d] %s send message: %s\n", __func__, i , client[i].nickname, buffer);
@@ -204,8 +193,7 @@ int start_server(void)
 					broadcast(buffer, &serverinfo);
 					memset(buffer, 0, sizeof(buffer));
 
-					if((ret = write(sockfd , buffer , n)) != n)
-					{
+					if((ret = write(sockfd , buffer , n)) != n) {
 						printf("error writing to the sockfd!\n");
 						break;
 					}
