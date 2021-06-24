@@ -70,30 +70,30 @@ int chat_get_config(char *key, char *val)
 	return 0;
 }
 
-int chat_serverinfo(Serverinfo *serverinfo)
+int chat_server(struct server *server)
 {
 	int ret;
-	char SERVER_PORT[100];
-	char SERVER_IP[100];
+	char PORT[100];
+	char IP[100];
 
 	/* Server IP and port from config file */
-	ret = chat_get_config("SERVER_IP", SERVER_IP);
+	ret = chat_get_config("SERVER_IP", IP);
 	if (ret) {
-		fprintf(stderr, "%s: Error %d to get SERVER_IP\n",
+		fprintf(stderr, "%s: Error %d to get IP\n",
 			__func__, ret);
 		return ret;
 	}
 
-	ret = chat_get_config("SERVER_PORT", SERVER_PORT);
+	ret = chat_get_config("SERVER_PORT", PORT);
 	if (ret) {
-		fprintf(stderr, "%s: Error %d to get SERVER_PORT\n",
+		fprintf(stderr, "%s: Error %d to get PORT\n",
 			__func__, ret);
 		return ret;
 	}
 
-	strcpy(serverinfo->SERVER_IP, SERVER_IP);
-	strcpy(serverinfo->SERVER_PORT, SERVER_PORT);
-	printf("SERVER_IP: %s  BIND_PORT: %s\n", serverinfo->SERVER_IP, serverinfo->SERVER_PORT);
+	strcpy(server->IP, IP);
+	strcpy(server->PORT, PORT);
+	printf("IP: %s  BIND_PORT: %s\n", server->IP, server->PORT);
 
 	return 0;
 

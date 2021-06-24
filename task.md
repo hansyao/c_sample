@@ -18,3 +18,10 @@
 <gshan> Tree: red-black tree, binary tree, Radix tree
 
 ```
+
+## Jun 24, 2021
+
+1. create seperated function for select / receiving in server module
+
+2. complete multi-thread in server
+

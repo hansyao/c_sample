@@ -15,11 +15,11 @@
 
 #include "chat.h"
 
-#define MAX_LINE 1024
 #define LISTENQ 20
 
-Serverinfo serverinfo; 
-Serverinfo client[FD_SETSIZE]; 
+struct server server;
+struct client client;
+struct client cl[FD_SETSIZE]; 
 
 size_t i;
 
@@ -28,22 +28,20 @@ static int verify_nickname(char *nickname)
 	int i;
 	/* nickname duplicate: 1, otherwise: 0 */
 	for (i=0; i<FD_SETSIZE; i++) {
-		if (strcmp(nickname, client[i].nickname) == 0)
+		if (strcmp(nickname, cl[i].nickname) == 0)
 			return 1;
 	}
 	return 0;
 }
 
-static void broadcast(char *msg, Serverinfo *c)
+static void broadcast(char *msg, struct server *c)
 {
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 	pthread_mutex_lock(&mutex);
 	for(i=0; i<FD_SETSIZE; i++) {
-		if(client[i].cfd != c->cfd) {
-			if(send(client[i].cfd, msg, strlen(msg)+1,0)<=0) {
-				continue;
-			}
+		if(send(cl[i].cfd, msg, strlen(msg)+1,0)<=0) {
+			continue;
 		}
 	}
 	pthread_mutex_unlock(&mutex);
@@ -51,7 +49,7 @@ static void broadcast(char *msg, Serverinfo *c)
 
 int start_server(void)
 {
-	int i, maxi, maxfd, cfd, sockfd, recvlen;
+	int i, ttl_conn, maxfd, cfd, sockfd, recvlen;
 	int nready;
 	int n, ret;
 	fd_set rset , allset;
@@ -61,30 +59,30 @@ int start_server(void)
 
  
 	/* Server IP and port from config file */
-	ret=chat_serverinfo(&serverinfo);
+	ret=chat_server(&server);
 
 	/*(1) open socket*/
-	serverinfo.sock = socket(AF_INET , SOCK_STREAM , 0);
+	server.sock = socket(AF_INET , SOCK_STREAM , 0);
  
 	/*(2) bind port*/
 	bzero(&servaddr , sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(atoi(serverinfo.SERVER_PORT));
-	servaddr.sin_addr.s_addr = inet_addr(serverinfo.SERVER_IP);
+	servaddr.sin_port = htons(atoi(server.PORT));
+	servaddr.sin_addr.s_addr = inet_addr(server.IP);
  
-	bind(serverinfo.sock , (struct sockaddr *)&servaddr , sizeof(servaddr));
+	bind(server.sock , (struct sockaddr *)&servaddr , sizeof(servaddr));
  
 	/*(3) listen*/
-	listen(serverinfo.sock , LISTENQ);
+	listen(server.sock , LISTENQ);
  
 	/*(4) initiate select*/
-	maxfd = serverinfo.sock;
-	maxi = -1;
+	maxfd = server.sock;
+	ttl_conn = -1;
 	for(i=0 ; i<FD_SETSIZE ; ++i) {
-		client[i].cfd = -1;
+		cl[i].cfd = -1;
 	}
 	FD_ZERO(&allset);
-	FD_SET(serverinfo.sock , &allset);
+	FD_SET(server.sock , &allset);
  
 	/*(5) loop in server*/
 
@@ -92,13 +90,13 @@ int start_server(void)
 		rset = allset;
 		nready = select(maxfd+1 , &rset, NULL, NULL, NULL);
 		
-		if(FD_ISSET(serverinfo.sock , &rset)) {
+		if(FD_ISSET(server.sock , &rset)) {
 			/* receive client requests*/
 			len = sizeof(caddr);
  
 			printf("\naccpet connection~\n");
  
-			if((cfd = accept(serverinfo.sock , (struct sockaddr *)&caddr , &len)) < 0) {
+			if((cfd = accept(server.sock , (struct sockaddr *)&caddr , &len)) < 0) {
 				perror("accept error.\n");
 				exit(1);
 			}
@@ -107,7 +105,7 @@ int start_server(void)
  
 			/* add cfd to arrary */
 			for(i=0 ; i<FD_SETSIZE ; ++i) {
-				if(client[i].cfd < 0) {
+				if(cl[i].cfd < 0) {
 					/* get nickname */
 					recvlen = recv(cfd, buffer, sizeof(buffer), 0);
 					if(recvlen <= 0 || buffer == "\n")
@@ -126,18 +124,18 @@ int start_server(void)
 					else {
 					
 						/* save nickname to arrary if not exist */
-						strcpy(client[i].nickname, buffer);
+						strcpy(cl[i].nickname, buffer);
 						memset(buffer, 0, sizeof(buffer));
 
-						fprintf(stdout, "%s %s is online!\n", __func__, client[i].nickname); 
+						fprintf(stdout, "%s %s is online!\n", __func__, cl[i].nickname); 
 
-						client[i].cfd = cfd;
-						serverinfo.cfd = cfd;
+						cl[i].cfd = cfd;
+						client.cfd = cfd;
 
 						/* broadcast oneline status */
-						strcpy(buffer, client[i].nickname);
+						strcpy(buffer, cl[i].nickname);
 						strcat(buffer, " is online!\n");
-						broadcast(buffer, &serverinfo);
+						broadcast(buffer, &server);
 						memset(buffer, 0, sizeof(buffer));
 
 						break;
@@ -153,15 +151,15 @@ int start_server(void)
 			FD_SET(cfd , &allset);
 			if(cfd > maxfd)
 				maxfd = cfd;
-			if(i > maxi)
-				maxi = i;
+			if(i > ttl_conn)
+				ttl_conn = i;
  
 			if(--nready < 0)
 				continue;
 		}
 
-		for(i=0; i<=maxi ; ++i) {
-			if((sockfd = client[i].cfd) < 0)
+		for(i=0; i<=ttl_conn ; ++i) {
+			if((sockfd = cl[i].cfd) < 0)
 				continue;
 			if(FD_ISSET(sockfd , &rset)) {
 				
@@ -171,26 +169,27 @@ int start_server(void)
 				bzero(buffer , MAX_LINE);
 				if((n = read(sockfd , buffer, MAX_LINE)) <= 0) {
 					/* broadcast offline info */
-					printf("%s is offiline!\n", client[i].nickname);
-					broadcast(strcat(client[i].nickname, " is offline!\n"), &serverinfo);
+					printf("%s is offiline!\n", cl[i].nickname);
+					broadcast(strcat(cl[i].nickname, " is offline!\n"), &server);
 
 					/* reset nickname buffer after offline*/
-					memset(client[i].nickname, 0, sizeof(client[i].nickname));
+					memset(cl[i].nickname, 0, sizeof(cl[i].nickname));
 
 					close(sockfd);
 					FD_CLR(sockfd , &allset);
-					client[i].cfd = -1;
+					cl[i].cfd = -1;
+					client.cfd = -1;
 				}
 				else {
 					if(strcmp(buffer, "\n") == 0)
 						continue;
-					fprintf(stdout, "%s client[%d] %s send message: %s\n", __func__, i , client[i].nickname, buffer);
-					// fprintf(stdout, "%s nickname: %s\n", __func__, client[i].nickname);
+					fprintf(stdout, "%s cl[%d] %s send message: %s\n", __func__, i , cl[i].nickname, buffer);
+					// fprintf(stdout, "%s nickname: %s\n", __func__, cl[i].nickname);
 
-					strcat(buffer, client[i].nickname);
+					strcat(buffer, cl[i].nickname);
 					strcat(buffer, ": ");
 
-					broadcast(buffer, &serverinfo);
+					broadcast(buffer, &server);
 					memset(buffer, 0, sizeof(buffer));
 
 					if((ret = write(sockfd , buffer , n)) != n) {
