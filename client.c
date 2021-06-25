@@ -13,27 +13,27 @@
 
 #include "chat.h"
 
-static inline void set_state(struct client *t, int state)
+static inline void set_state(struct client_thread *t, int state)
 {
 	t->state = state;
 }
 
-static inline void set_val(struct client *t)
+static inline void set_val(struct client_thread *t)
 {
 	t->val++;
 }
 
-static inline int check_state(struct client *t, int state)
+static inline int check_state(struct client_thread *t, int state)
 {
 	return (t->state == state) ? 1 : 0;
 }
 
-static inline int check_val(struct client *t, int val)
+static inline int check_val(struct client_thread *t, int val)
 {
 	return (t->val == val) ? 1 : 0;
 }
 
-static inline void wait_state(struct client *t, int state, int val)
+static inline void wait_state(struct client_thread *t, int state, int val)
 {
 	while (1) {
 		if (!check_state(t, state))
@@ -47,12 +47,16 @@ static inline void wait_state(struct client *t, int state, int val)
 
 static void *recv_func(void *data)
 {
-	struct client *t = (struct client *)data;
+	struct client_thread *t = (struct client_thread *)data;
 	int ret, clientSocket = t->sock;
-	char recvbuffer[1024];
+	char recvbuffer[CHAT_BUFFER_LEN];
 	time_t timep;
 
 	while(1) {
+
+		/* initial recvbuffer */
+		memset(recvbuffer, 0, CHAT_BUFFER_LEN);
+		
 		/* Check if send thread is quiting */
 		if (check_state(t, client_state_quit)) {
 			set_val(t);
@@ -66,20 +70,23 @@ static void *recv_func(void *data)
 			usleep(10000);
 			continue;
 		}
-
+		
 		time(&timep);
 		printf("%s <<<< %s\n", recvbuffer, ctime(&timep));
+
 	}	
 }
 
 static void *send_func(void *data)
 {
-	struct client *t = (struct client *)data; 
+	struct client_thread *t = (struct client_thread *)data; 
 	int clientSocket = t->sock;
-	char sendbuffer[1024], buf[100];
+	char sendbuffer[CHAT_BUFFER_LEN], buf[100];
 
+	// printf("Your nickname: %s\n", t->nickname);
+	send(t->sock, t->nickname, sizeof(t->nickname), 0);
 	while(1) {
-		printf("%s: ", t->nickname);
+		// printf("%s: ", t->nickname);
 		fgets(sendbuffer, sizeof(sendbuffer), stdin);
 		if (strcmp(sendbuffer, CHAT_COMMAND_QUIT) == 0) {
 			printf("do you wanna quit? (\"y\"->quit; any key continue) :");
@@ -88,7 +95,7 @@ static void *send_func(void *data)
 				break;
 			}
 		}
-		if(send(clientSocket, sendbuffer, strlen(sendbuffer)+1, 0) <= 0) {
+		if(send(clientSocket, sendbuffer, sizeof(sendbuffer), 0) <= 0) {
 			break;	
 		}
 	}
@@ -101,17 +108,19 @@ static void *send_func(void *data)
 
 int start_client(char *nickname)
 {
-	struct client t = {
+	struct client_thread t = {
 		.state = client_state_none,
-		.nickname = *nickname,
+		.nickname = nickname,
 	};
+	
+	fprintf(stdout, "%s  nickname: %s\n", __func__, t.nickname);
+
 	int ret, fd[2], ret_fd;
 	struct server server;
 	struct sockaddr_in addr;
 	socklen_t addrlen;
 
-	char sendbuffer[1024], recvbuffer[1024];
-	char buf[100];
+	char sendbuffer[CHAT_BUFFER_LEN], recvbuffer[CHAT_BUFFER_LEN];
 	char *state = CHAT_COMMAND_QUIT;
 
 	pthread_t id[2] = { 0, 0 };
@@ -145,8 +154,7 @@ int start_client(char *nickname)
 	}
 
 	printf("connect server successfully!\n");
-	printf("Your nickname: %s\n", nickname);
-	send(t.sock, nickname, sizeof(nickname)+1, 0);
+
 
 	/* Thread to send messages */
 	ret = pthread_create(&id[1], NULL, send_func, &t);

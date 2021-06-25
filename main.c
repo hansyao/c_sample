@@ -43,8 +43,8 @@ int main(int argc, char **argv)
 			// printf("input your password:");
 			// scanf("%s", password);
 			// printf("your password: %s \n", password);
+			fprintf(stdout, "%s nickname: %s\n", __func__, nickname);
 			ret = start_client(nickname);
-
 			break;
 		case 'h':
 		default:
