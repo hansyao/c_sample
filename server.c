@@ -166,7 +166,7 @@ static void client_request_func(int *ttl_conn, fd_set *rset, fd_set *allset, int
 				if ((strlen(cl[i].nickname) == 0) || (cl[i].nickname == "\n"))
 					break;
 
-fprintf(stdout, "%s %s(HEX: %x) is offline!\n", __func__, cl[i].nickname, cl[i].nickname);
+				fprintf(stdout, "%s %s(HEX: %x) is offline!\n", __func__, cl[i].nickname, cl[i].nickname);
 
 				broadcast(strcat(cl[i].nickname, " is offline!\n"), &server);
 
