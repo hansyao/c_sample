@@ -12,3 +12,4 @@ client
 !*.*
 test2.c
 test.c
+test/

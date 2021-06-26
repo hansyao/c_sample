@@ -1,7 +1,7 @@
-#include <stdio.h>  
+#include <stdio.h>	
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>        
+#include <string.h>		   
 #include <errno.h>
 
 #include "chat.h"
@@ -59,7 +59,7 @@ int chat_get_config(char *key, char *val)
 		pval = trim(pval);
 
 		if (strlen(pkey) == strlen(key) &&
-		    !strcmp(pkey, key)) {
+			!strcmp(pkey, key)) {
 			strcpy(val, pval);
 			ret = 0;
 			break;
@@ -93,7 +93,7 @@ int chat_server(struct server *server)
 
 	strcpy(server->IP, IP);
 	strcpy(server->PORT, PORT);
-	printf("IP: %s  BIND_PORT: %s\n", server->IP, server->PORT);
+	printf("IP: %s	BIND_PORT: %s\n", server->IP, server->PORT);
 
 	return 0;
 

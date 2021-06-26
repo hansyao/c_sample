@@ -3,9 +3,9 @@
  * function. The program supports the following options:
  *
  * ./chat -s
- *   Running the program in server mode
+ *	 Running the program in server mode
  * ./chat -n <nickname>
- *   Running the program in client mode
+ *	 Running the program in client mode
  *
  */
 
@@ -22,8 +22,8 @@ static void usage(void)
 {
 	fprintf(stdout, "./chat\n");
 	fprintf(stdout, "\n");
-	fprintf(stdout, "-s               Start server\n");
-	fprintf(stdout, "-n <nickname>    Start client\n");
+	fprintf(stdout, "-s				  Start server\n");
+	fprintf(stdout, "-n <nickname>	  Start client\n");
 	fprintf(stdout, "\n");
 }
 
@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 		switch(opt) {
 		case 's':
 			ret = start_server();
-	                break;
+					break;
 		case 'n':
 			nickname = optarg;
 			// printf("input your password:");
