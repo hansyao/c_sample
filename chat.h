@@ -1,10 +1,10 @@
-#define CHAT_CONFIG_FILE "config"	/* chat config file		*/
-#define CHAT_COMMAND_QUIT "/quit\n"	/* quit command			*/
-#define CHAT_IP_LEN 100			/* ip length			*/
-#define CHAT_PORT_LEN 16		/* ip port lenth		*/
-#define CHAT_NICKNAME_LEN 100		/* nickname lenth		*/
-#define CHAT_BUFFER_LEN 1024		/* msg max length		*/
-#define CHAT_LISTENQ 200		/* listen limits		*/
+#define CHAT_CONFIG_FILE "config"		/* chat config file	*/
+#define CHAT_COMMAND_QUIT "/quit\n"		/* quit command		*/
+#define CHAT_IP_LEN 100				/* ip length		*/
+#define CHAT_PORT_LEN 16			/* ip port lenth	*/
+#define CHAT_NICKNAME_LEN 100			/* nickname lenth	*/
+#define CHAT_BUFFER_LEN 1024			/* msg max length	*/
+#define CHAT_LISTENQ 200			/* listen limits	*/
 
 struct client {
 	int  cfd;				/* client file descr	*/
