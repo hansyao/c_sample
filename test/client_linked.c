@@ -10,12 +10,16 @@ struct client {
 	struct client *next;
 };
 
+char *del_nickname_test;
 
 struct client *create_client_nodes(int cfd, char *nickname)
 {
+	
+	/* head point */
+	struct client *client_node = NULL;
 
-	struct client *client_node = NULL;							/* head point */
-	client_node = (struct client *)malloc(sizeof(client_node)); /* allo mem */
+	/* allocate memory */
+	client_node = (struct client *)malloc(sizeof(client_node)); 
 	if (client_node == NULL) {
 		fprintf (stdout, "%s malloc failed!\n", __func__);
 	}
@@ -35,21 +39,24 @@ struct client *client_linklist(int n)
 	int cfd;
 	char *nickname;
 
-	nickname = "Hans Yao";
+	del_nickname_test = malloc(sizeof(del_nickname_test));
 
 	/* allocate memory space */
-	head = (struct client *)malloc(sizeof(client_linklist));
+	head = (struct client *)malloc(sizeof(head));
 	end = head;
 	for (int i = 0; i < n; i++) {
 		cfd = i;
-		// sprintf(nickname, "%d", rand());
+		nickname = malloc(sizeof(nickname));
+		sprintf(nickname, "%d", rand());
 		client_node = create_client_nodes(cfd, nickname);
 		end->next = client_node;
 		end = client_node;
-
+		
 		fprintf(stdout, "%s cfd - %d nickname: %s\n", 
-					__func__, client_node->cfd, client_node->nickname);
+			__func__, client_node->cfd, client_node->nickname);
 
+		if (i == 3)
+			del_nickname_test = nickname;
 	}
 
 	end->next = NULL; 
@@ -110,7 +117,8 @@ int delete_by_cfd(struct client *head, int cfd)
 				free(p);
 			}
 			return 0;
-			fprintf (stdout, "%s delete %d successfully!\n", __func__, cfd);
+			fprintf (stdout, "%s delete %d successfully!\n", 
+				__func__, cfd);
 		}
 	}
 	fprintf (stdout, "%s not found: %d\n", __func__, cfd);
@@ -122,10 +130,12 @@ int delete_by_nickname(struct client *head, char *nickname)
 {
 	struct client *p = head;
 	struct client *prev = NULL;
+	nickname = del_nickname_test;
+
 	while (NULL != p->next) {
 		prev = p;
 		p = p->next;
-		if ( p->cfd == nickname ) {
+		if ( p->nickname == nickname ) {
 			if (p->next != NULL) {
 				prev->next = p->next;
 				free(p);
@@ -134,9 +144,10 @@ int delete_by_nickname(struct client *head, char *nickname)
 				prev->next = NULL;
 				free(p);
 			}
-			return 0;
 			fprintf (stdout, "%s delete %s successfully!\n", 
 						__func__, nickname);
+			free(del_nickname_test);
+			return 0;
 		}
 	}
 	fprintf (stdout, "%s not found: %d\n", __func__, nickname);
@@ -147,8 +158,7 @@ int delete_by_nickname(struct client *head, char *nickname)
 
 int main (int argc, char **argv[])
 {
-	int cfd;
-	char *nickname;
+	int cfd, ret;
 
 	int n = 10;
 
@@ -156,13 +166,20 @@ int main (int argc, char **argv[])
 	struct client *client_node = client_linklist(n);
 
 	fprintf(stdout, "%s check head: cfd - %d nickname: %s\n", 
-				__func__, client_node->cfd, client_node->nickname);
+		__func__, client_node->cfd, client_node->nickname);
 
-	/* print whole list */
-	
-	fprintf(stdout, "%s print whole list \n", __func__);
+	/* print whole list */	
+	fprintf(stdout, "\n%s print whole list \n", __func__);
 	print_client_linklist(client_node);
+	
+	/* delete by nickname */
+	fprintf(stdout, "\n%s start delete nickname %s\n", __func__, 
+		del_nickname_test);
+	delete_by_nickname(client_node, del_nickname_test);
 
+	/* print whole list to see whether delete successfully */
+	fprintf(stdout, "\n%s start print after delete\n", __func__);
+	print_client_linklist(client_node);
 	free(client_node);
 	
 	return 0;
