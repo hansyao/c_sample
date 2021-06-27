@@ -86,18 +86,19 @@ static void *send_func(void *data)
 	// printf("Your nickname: %s\n", t->nickname);
 	send(t->sock, t->nickname, sizeof(t->nickname), 0);
 	while(1) {
-	// printf("%s: ", t->nickname);
-	fgets(sendbuffer, sizeof(sendbuffer), stdin);
-	if (strcmp(sendbuffer, CHAT_COMMAND_QUIT) == 0) {
-		printf("do you wanna quit? (\"y\"->quit; any key continue) :");
-		fgets(buf, sizeof(buf), stdin);
-		if (strcmp(buf,"y\n") == 0) {
-		break;
+		// printf("%s: ", t->nickname);
+		fgets(sendbuffer, sizeof(sendbuffer), stdin);
+		if (strcmp(sendbuffer, CHAT_COMMAND_QUIT) == 0) {
+			printf("quit? (\"y\"->quit; any key continue) :");
+			fgets(buf, sizeof(buf), stdin);
+			if (strcmp(buf,"y\n") == 0) {
+				break;
+			}
 		}
-	}
-	if(send(clientSocket, sendbuffer, sizeof(sendbuffer), 0) <= 0) {
-		break;	
-	}
+		if(send(clientSocket, sendbuffer, 
+			sizeof(sendbuffer), 0) <= 0) {
+			break;	
+		}
 	}
 
 	/* Tell the main thread to quit */
@@ -109,8 +110,8 @@ static void *send_func(void *data)
 int start_client(char *nickname)
 {
 	struct client_thread t = {
-	.state = client_state_none,
-	.nickname = nickname,
+		.state = client_state_none,
+		.nickname = nickname,
 	};
 	
 	fprintf(stdout, "%s  nickname: %s\n", __func__, t.nickname);
@@ -128,16 +129,17 @@ int start_client(char *nickname)
 	/* Server IP and port from config file */
 	ret = chat_server(&server);
 	if (ret) {
-	fprintf(stderr, "%s: Error %d to get config\n", __func__, ret);
+		fprintf(stderr, "%s: Error %d to get config\n", 
+			__func__, ret);
 		goto error;
 	}
 
 	/* Create socket */
 	t.sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (t.sock < 0) {
-	fprintf(stderr, "%s: Error %d to create socket\n", 
+		fprintf(stderr, "%s: Error %d to create socket\n", 
 			__func__, t.sock);
-	goto error;
+		goto error;
 	}
 	
 	/* Connect to server */
@@ -147,7 +149,8 @@ int start_client(char *nickname)
 	addrlen = sizeof(addr);
 	ret = connect(t.sock, (const struct sockaddr*)(&addr), addrlen);
 	if(ret == -1) {
-	fprintf(stderr, "%s: Error %d to connect server\n", __func__, ret);
+		fprintf(stderr, "%s: Error %d to connect server\n", 
+			__func__, ret);
 		goto error;
 	}
 
@@ -157,38 +160,38 @@ int start_client(char *nickname)
 	/* Thread to send messages */
 	ret = pthread_create(&id[1], NULL, send_func, &t);
 	if (ret) {
-	fprintf(stderr, "%s: Error %d to create send thread\n", 
+		fprintf(stderr, "%s: Error %d to create send thread\n", 
 			__func__, ret);
-	goto error;
+		goto error;
 	}
 
 	/* Thread to receive messages */
 	ret = pthread_create(&id[2], NULL, recv_func, &t);
 	if (ret != 0) {
-	fprintf(stderr, "%s: Error %d to create recv thread\n",
+		fprintf(stderr, "%s: Error %d to create recv thread\n",
 			__func__, ret);
-	goto error;
+		goto error;
 	}
 
 	/* Sleep here and waiting some one to quit */
 	while (1) {
-	if (check_state(&t, client_state_quit)) {
-		set_val(&t);
-		wait_state(&t, client_state_quit, 3);
-		break;
-	}
+		if (check_state(&t, client_state_quit)) {
+			set_val(&t);
+			wait_state(&t, client_state_quit, 3);
+			break;
+		}
 
-	sleep(0);
+		sleep(0);
 	}
 	
 	return 0;	
 
 error:
 	if (id[1])
-	pthread_detach(id[1]);
+		pthread_detach(id[1]);
 	if (id[0])
-	pthread_detach(id[0]);
+		pthread_detach(id[0]);
 	if (t.sock> 0)
-	close(t.sock);
+		close(t.sock);
 	return -EIO;
 }
