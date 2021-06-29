@@ -5,100 +5,96 @@
 #define CHAT_NICKNAME_LEN 100
 
 struct client {
-	int cfd;
-	char *nickname;
-	struct client *next;
+	int		cfd;
+	char		*nickname;
+	struct client	*next;
 };
+
 
 char *del_nickname_test;
 
-struct client *create_client_nodes(int cfd, char *nickname)
+struct client *add_client_node(int cfd, char *nickname)
 {
-	
-	/* head point */
-	struct client *client_node = NULL;
+	struct client *client;
 
-	/* allocate memory */
-	client_node = (struct client *)malloc(sizeof(client_node)); 
-	if (client_node == NULL) {
-		fprintf (stdout, "%s malloc failed!\n", __func__);
+	client = (struct client *)malloc(sizeof(*client));
+	if (!client) {
+		fprintf(stderr, "%s: Memory allocation fails (%d, %s)\n",
+			cfd, nickname);
+		return NULL;
 	}
 
-	memset(client_node, 0, sizeof(client_node));	/* mem space initial */
-	client_node->cfd = cfd;
-	client_node->nickname = nickname;
-	client_node->next = NULL;
-	
-	return client_node;
+	memset(client, 0, sizeof(*client));
+	client->cfd = cfd;
+	client->nickname = nickname;
+	client->next = NULL;
 
+	return client;
 }
 
-struct client *client_linklist(int n)
+struct client *populate_list(int n, char **delete)
 {
-	struct client *head, *client_node, *end;
-	int cfd;
+	struct client *head, *client, *end;
+	int cfd, i;
 	char *nickname;
 
-	del_nickname_test = malloc(sizeof(del_nickname_test));
+	*delete = NULL;
+	head = NULL;
 
-	/* allocate memory space */
-	head = (struct client *)malloc(sizeof(head));
-	end = head;
-	for (int i = 0; i < n; i++) {
-		cfd = i;
-		nickname = malloc(sizeof(nickname));
+	for (i = 0; i < n; i++) {
+		nickname = (char *)malloc(sizeof(int));
+		if (!nickname) {
+			fprintf(stderr, "%s: Alloc nickname (%d)\n",
+				__func__, i);
+			continue;
+		}
+
 		sprintf(nickname, "%d", rand());
-		client_node = create_client_nodes(cfd, nickname);
-		end->next = client_node;
-		end = client_node;
-		
-		fprintf(stdout, "%s cfd - %d nickname: %s\n", 
-			__func__, client_node->cfd, client_node->nickname);
+		client = add_client_node(i, nickname);
+		if (!cient) {
+			free(nickname);
+			continue;
+		}
 
-		if (i == 3)
-			del_nickname_test = nickname;
+		/*  Nickname to be deleted */
+		if (*delete == NULL)
+			*delete = nickname;
+		else if (i == 3)
+			*delte = nickname;
+
+		/*  Head node */
+		head = head ? head : client;
 	}
 
-	end->next = NULL; 
-	
 	return head;
 }
 
-/* insert last */
-void tail_insert(struct client *head, struct client *new)
+void add_tail(struct client **head, struct client *new)
+{
+	struct client **p = head;
+
+	while (*p)
+		p = &((*p)->next);
+
+	*p = new;
+}
+
+void add_head(struct client **head, struct client *new)
+{
+	new->next = *head;
+	*head = new;
+}
+
+void print_list(struct client *head)
 {
 	struct client *p = head;
 
-	while(NULL != p->next) {
-		p = p->next;
-	}
+	while (p) {
+		fprintf(stdout, "[%04d] [%s]\n", p->cfd, p->nickname);
 
-	p->next = new;
-
-}
-
-
-/* insert head */
-void head_insert(struct client *head, struct client *new)
-{
-	struct client *p = head;
-
-	new->next = p->next;
-	p->next = new;
-
-}
-
-void print_client_linklist(struct client *client_linklist)
-{
-	struct client *p = client_linklist;
-	p = p->next;
-	while (NULL != p->next) {
-		fprintf(stdout, "%s cfd - %d nickname:%s\n", 
-					__func__, p->cfd, p->nickname);
 		p = p->next;
 	}
 }
-
 
 int delete_by_cfd(struct client *head, int cfd)
 {
