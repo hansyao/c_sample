@@ -44,12 +44,12 @@ static inline int check_val(struct server_thread *t, int val)
 static inline void wait_state(struct server_thread *t, int state, int val)
 {
 	while (1) {
-	if (!check_state(t, state))
-		continue;
+		if (!check_state(t, state))
+			continue;
 
-	/* We don't care the value if -1 is given */
-	if (val == -1 || check_val(t, val))
-		break;
+		/* We don't care the value if -1 is given */
+		if (val == -1 || check_val(t, val))
+			break;
 	}
 }
 
@@ -59,7 +59,7 @@ static int verify_nickname(char *nickname)
 	/* nickname duplicate: 1, otherwise: 0 */
 	for (i=0; i<FD_SETSIZE; i++) {
 		if (strcmp(nickname, cl[i].nickname) == 0)
-		return 1;
+			return 1;
 	}
 	return 0;
 }
@@ -73,7 +73,7 @@ static void broadcast(char *msg, struct server *c)
 	for(i=0; i<FD_SETSIZE; i++) {
 		// if(cl[i].cfd != client.cfd) continue;
 		if(send(cl[i].cfd, msg, strlen(msg), 0)<=0)
-		continue;
+			continue;
 	}
 	pthread_mutex_unlock(&mutex);
 }
@@ -84,14 +84,14 @@ static int accept_conn_func(struct sockaddr_in caddr, int *cfd)
 	socklen_t len;
 	char buffer[CHAT_NICKNAME_LEN];
 	// struct sockaddr_in caddr = (struct sockaddr_in *)data;
-	
+
 	/* receive client requests*/
 	len = sizeof(caddr);
 
 	printf("\naccpet connection~\n");
 
 	if((*cfd = accept(server.sock, 
-		(struct sockaddr *)&caddr , &len)) < 0) {
+					(struct sockaddr *)&caddr, &len)) < 0) {
 		perror("accept error.\n");
 		exit(1);
 	}
@@ -101,7 +101,7 @@ static int accept_conn_func(struct sockaddr_in caddr, int *cfd)
 
 	/* add cfd to arrary */
 	fprintf(stdout, "%s FD_SETSIZE before: %d \n", __func__, 
-	FD_SETSIZE);
+			FD_SETSIZE);
 	for(i=0; i<FD_SETSIZE; ++i) {
 		bzero(buffer,sizeof(buffer));
 		if(cl[i].cfd < 0) {
@@ -109,7 +109,7 @@ static int accept_conn_func(struct sockaddr_in caddr, int *cfd)
 			recvlen = recv(*cfd, buffer, sizeof(buffer), 0);
 			if(recvlen <= 0 || buffer == "\n")
 				break;
-			
+
 			/* verify nickname */
 			ret = verify_nickname(buffer);
 			if (ret == 1) {
@@ -126,7 +126,7 @@ static int accept_conn_func(struct sockaddr_in caddr, int *cfd)
 				strcpy(cl[i].nickname, buffer);
 
 				fprintf(stdout, "%s %s is online!\n", 
-					__func__, cl[i].nickname);
+						__func__, cl[i].nickname);
 
 				cl[i].cfd = *cfd;
 				client.cfd = *cfd;
@@ -138,7 +138,7 @@ static int accept_conn_func(struct sockaddr_in caddr, int *cfd)
 
 				break;
 			}	
-		
+
 			fprintf(stdout, "%s loop i = %d\n", __func__, i);
 		}
 	}
@@ -147,7 +147,7 @@ static int accept_conn_func(struct sockaddr_in caddr, int *cfd)
 }
 
 static void client_request_func(int *ttl_conn, fd_set *rset, 
-				fd_set *allset, int *nready)
+		fd_set *allset, int *nready)
 {
 
 	int i, sockfd, ret, recvlen;
@@ -157,33 +157,34 @@ static void client_request_func(int *ttl_conn, fd_set *rset,
 		if((sockfd = cl[i].cfd) < 0)
 			continue;
 		if(FD_ISSET(sockfd , rset)) {
-			
+
 			/*process client request*/
 			printf("\nreading the socket~~~ \n");
-			
-			if((recvlen = recv(sockfd , buffer, 
-				sizeof(buffer), MSG_DONTWAIT)) <= 0) {
+
+			if((recvlen = recv(sockfd, buffer, sizeof(buffer), 
+							MSG_DONTWAIT)) <= 0) {
 
 				fprintf (stdout, "%s recvlen: %d\n", 
-					__func__, recvlen);
+						__func__, recvlen);
 
 				/* broadcast offline info */	
 
 				if ((strlen(cl[i].nickname) == 0) || 
-					(cl[i].nickname == "\n"))
+						(cl[i].nickname == "\n"))
 					break;
 
 				fprintf(stdout, 
-					"%s %s(HEX: %x) is offline!\n", 
-					__func__, cl[i].nickname, 
-					cl[i].nickname);
+						"%s %s(HEX: %x) is offline!\n", 
+						__func__, cl[i].nickname, 
+						cl[i].nickname);
 
 				broadcast(strcat(cl[i].nickname, 
-					" is offline!\n"),&server);
+							" is offline!\n"), 
+						&server);
 
 				/* reset nickname buffer after offline*/
 				bzero(cl[i].nickname, 
-					sizeof(cl[i].nickname));
+						sizeof(cl[i].nickname));
 
 				close(sockfd);
 				FD_CLR(sockfd , allset);
@@ -194,24 +195,25 @@ static void client_request_func(int *ttl_conn, fd_set *rset,
 				if(strcmp(buffer, "\n") == 0)
 					continue;
 				fprintf(stdout, 
-					"%s cl[%d] %s send mesg: %s\n", 
-				__func__, i , cl[i].nickname, buffer);
+						"%s cl[%d] %s send mesg: %s\n", 
+						__func__, i , cl[i].nickname, 
+						buffer);
 
 				strcat(buffer, cl[i].nickname);
 				strcat(buffer, ": ");
 				broadcast(buffer, &server);
 
-				if((ret = send(sockfd, buffer, 
-					recvlen,0)) != recvlen) {
+				if((ret = send(sockfd, buffer, recvlen,	
+						0)) != recvlen) {
 					printf("error write sockfd!\n");
 					break;
 				}
 			}
 			if(--nready <= 0)
 				fprintf(stdout, "%s nready: %d\n", 
-					__func__, nready);
+						__func__, nready);
 
-		break;
+			break;
 		}
 	}
 } 
@@ -220,7 +222,7 @@ static void client_request_func(int *ttl_conn, fd_set *rset,
 /* server thread callback*/
 static void *server_func(void *data)
 {
-	
+
 	struct server_thread *t = (struct server_thread *)data;
 
 	fd_set rset, allset;
@@ -242,15 +244,15 @@ static void *server_func(void *data)
 	while(1) {
 		rset = allset;
 		nready = select(maxfd + 1 , &rset, NULL, NULL, NULL);
-		
+
 		fprintf(stdout, "%s nready-before: %d\n", 
-			__func__, nready);
+				__func__, nready);
 
 		/* accept connections */
 		if(FD_ISSET(server.sock , &rset)) {
 			i = accept_conn_func(caddr, &cfd);
 			fprintf(stdout, "%s loop i = %d\n", __func__, i);
-			
+
 			if(FD_SETSIZE == i) {
 				perror("too many connection.\n");
 				exit(1);
@@ -262,19 +264,19 @@ static void *server_func(void *data)
 				maxfd = cfd;
 			if(i > ttl_conn)
 				ttl_conn = i;
-			
+
 			if(--nready < 0)
-			continue;
+				continue;
 		}
-		
+
 		fprintf (stdout, "%s ttl_conn: %d\n", __func__, ttl_conn);
 
 		fprintf(stdout, "%s nready-after: %d\n", 
-			__func__, nready);
+				__func__, nready);
 
 		/* process clients requests */
 		client_request_func(&ttl_conn, &rset, &allset, &nready);
-		
+
 	}
 
 	/* Tell the main thread to quit */
@@ -291,32 +293,32 @@ int start_server(void)
 	struct sockaddr_in servaddr;
 	struct server_thread t;
 	pthread_t id;
- 
+
 	/* Server IP and port from config file */
 	ret=chat_server(&server);
 
 	/*(1) open socket*/
 	server.sock = socket(AF_INET , SOCK_STREAM , 0);
- 
+
 	/*(2) bind port*/
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(atoi(server.PORT));
 	servaddr.sin_addr.s_addr = inet_addr(server.IP);
- 
+
 	bind(server.sock, (struct sockaddr *)&servaddr, sizeof(servaddr));
- 
+
 	/*(3) listen*/
 	listen(server.sock , CHAT_LISTENQ);
- 
+
 	/*(4) loop in server*/
 
 	/* Thread to process request */
 	ret = pthread_create(&id, NULL, server_func, &t);
 	if (ret != 0) {
-	fprintf(stderr, "%s: Error %d to create recv thread\n",
-		__func__, ret);
-	goto error;
+		fprintf(stderr, "%s: Error %d to create recv thread\n",
+				__func__, ret);
+		goto error;
 	}
 
 	/* Sleep here and waiting child thread to quit */
