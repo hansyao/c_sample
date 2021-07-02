@@ -8,14 +8,15 @@
 
 struct client {
 	int  cfd;				/* client file descr	*/
-	char nickname[CHAT_NICKNAME_LEN];	/* client nickname	*/
+	char *nickname;				/* client nickname	*/
+	struct client *next;			/* point to next	*/
+	struct client *prev;			/* point to prev	*/
 };
 
 struct server {
 	int	sock;				/* server socket	*/
 	char	IP[CHAT_IP_LEN];		/* server IP addr	*/
 	char	PORT[CHAT_PORT_LEN];		/* server listen port	*/
-	struct	client client;			/* client accept	*/
 };
 
 struct server_thread {
@@ -34,6 +35,12 @@ struct client_thread {
 	int	val;				/* thread value		*/
 };
 
-int chat_server(struct server *server);		/* get server config	*/
-int start_server(void);				/* server start		*/
-int start_client(char *nickname);		/* client start		*/
+int chat_server(struct server *server);	
+int start_server(void);	
+int start_client(char *nickname);
+struct client *add_client(int cfd, char *nickname);
+struct client *add_tail(struct client **head, struct client *new);
+int del_client(struct client *head, struct client *delete, int n);
+void print_list(struct client *head);
+
+
