@@ -66,7 +66,7 @@ int del_client(struct client *head, struct client *delete, int n)
 	struct client *prev = NULL;
 	struct client *d = delete;
 
-	while (p->next) {
+	while (p) {
 		prev = p;
 		p = p->next;
 
