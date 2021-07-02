@@ -30,7 +30,6 @@ static void usage(void)
 int main(int argc, char **argv)
 {
 	char *nickname;
-	char password[32];
 	int opt, ret = 0;
 
 	while ((opt = getopt(argc, argv, "sn:h")) != -1) {
@@ -40,9 +39,6 @@ int main(int argc, char **argv)
 					break;
 		case 'n':
 			nickname = optarg;
-			// printf("input your password:");
-			// scanf("%s", password);
-			// printf("your password: %s \n", password);
 			fprintf(stdout, "%s nickname: %s\n", 
 					__func__, nickname);
 			ret = start_client(nickname);

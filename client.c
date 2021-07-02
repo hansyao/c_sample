@@ -74,7 +74,8 @@ static void *recv_func(void *data)
 	time(&timep);
 	printf("%s <<<< %s\n", recvbuffer, ctime(&timep));
 
-	}	
+	}
+	return 0;
 }
 
 static void *send_func(void *data)
@@ -83,7 +84,6 @@ static void *send_func(void *data)
 	int clientSocket = t->sock;
 	char sendbuffer[CHAT_BUFFER_LEN], buf[100];
 
-	// printf("Your nickname: %s\n", t->nickname);
 	send(t->sock, t->nickname, sizeof(t->nickname), 0);
 	while(1) {
 		// printf("%s: ", t->nickname);
@@ -105,24 +105,22 @@ static void *send_func(void *data)
 	set_state(t, client_state_quit);
 	set_val(t);
 	wait_state(t, client_state_quit, 3);
+	return 0;
 }
 
 int start_client(char *nickname)
 {
 	struct client_thread t = {
-		.state = client_state_none,
 		.nickname = nickname,
+		.state = client_state_none,
 	};
 	
 	fprintf(stdout, "%s  nickname: %s\n", __func__, t.nickname);
 
-	int ret, fd[2], ret_fd;
+	int ret;
 	struct server server;
 	struct sockaddr_in addr;
 	socklen_t addrlen;
-
-	char sendbuffer[CHAT_BUFFER_LEN], recvbuffer[CHAT_BUFFER_LEN];
-	char *state = CHAT_COMMAND_QUIT;
 
 	pthread_t id[2] = { 0, 0 };
 

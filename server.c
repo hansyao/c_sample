@@ -18,7 +18,9 @@
 
 struct server server;
 struct client client;
-struct client cl[FD_SETSIZE]; 
+struct client *head;
+
+int ttl_conn = -1;
 
 
 static inline void set_state(struct server_thread *t, int state)
@@ -55,166 +57,185 @@ static inline void wait_state(struct server_thread *t, int state, int val)
 
 static int verify_nickname(char *nickname)
 {
-	int i;
-	/* nickname duplicate: 1, otherwise: 0 */
-	for (i=0; i<FD_SETSIZE; i++) {
-		if (strcmp(nickname, cl[i].nickname) == 0)
+	struct client *p;
+
+	p = head;
+	p = p->next;
+	while (p) {
+		fprintf(stdout, "%s nickname: %s p->nickname: %s\n", 
+			__func__, nickname, p->nickname);
+		if(strcmp(p->nickname, nickname) == 0)
 			return 1;
+		p = p->next;
 	}
-	return 0;
+
+	return 0;	 /* 0 not found; 1 nickname found */
 }
 
-static void broadcast(char *msg, struct server *c)
+static void broadcast(char *msg, int *cfd)
 {
-	int i;
-	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	struct client *p = head;
+	
+	p = p->next;
+	while (p) {
+		/* not broadcast for itself */
+		if (p->cfd == *cfd)  goto next;
 
-	pthread_mutex_lock(&mutex);
-	for(i=0; i<FD_SETSIZE; i++) {
-		// if(cl[i].cfd != client.cfd) continue;
-		if(send(cl[i].cfd, msg, strlen(msg), 0)<=0)
-			continue;
+		/* boardcoast all others */
+		send(p->cfd, msg, strlen(msg), 0);
+next:
+		p = p->next;
 	}
-	pthread_mutex_unlock(&mutex);
 }
 
-static int accept_conn_func(struct sockaddr_in caddr, int *cfd)
+static int accept_conn_func(int *cfd, fd_set *allset)
 {
-	int recvlen, ret, i;
+	int recvlen, ret, n;
+	struct sockaddr_in caddr;
 	socklen_t len;
 	char buffer[CHAT_NICKNAME_LEN];
-	// struct sockaddr_in caddr = (struct sockaddr_in *)data;
+
+	struct client *p = head;
+	struct client *client;
 
 	/* receive client requests*/
 	len = sizeof(caddr);
 
 	printf("\naccpet connection~\n");
 
-	if((*cfd = accept(server.sock, 
-					(struct sockaddr *)&caddr, &len)) < 0) {
+	*cfd = accept(server.sock, (struct sockaddr *)&caddr, &len);
+	if(*cfd < 0) {
 		perror("accept error.\n");
-		exit(1);
+		return ttl_conn;
 	}
 
 	printf("accpet a new client: %s:%d\n", inet_ntoa(caddr.sin_addr), 
 			caddr.sin_port);
 
-	/* add cfd to arrary */
-	fprintf(stdout, "%s FD_SETSIZE before: %d \n", __func__, 
-			FD_SETSIZE);
-	for(i=0; i<FD_SETSIZE; ++i) {
+	/* add cfd to single-link */
+	fprintf(stdout, "%s FD_SETSIZE before: %d \n", __func__, FD_SETSIZE);
+		
+	n = FD_SETSIZE;
+	p = head;
+	while (ttl_conn < n) {
 		bzero(buffer,sizeof(buffer));
-		if(cl[i].cfd < 0) {
-			/* get nickname */
-			recvlen = recv(*cfd, buffer, sizeof(buffer), 0);
-			if(recvlen <= 0 || buffer == "\n")
-				break;
+		/* get nickname */
+		recvlen = recv(*cfd, buffer, sizeof(buffer), 0);
+		if(recvlen <= 0 || (strcmp(buffer, "\n") == 0))
+			break;
+		
+		ttl_conn++;
+		/* verify nickname */
+		fprintf(stdout, "%s start verify_nickname\n", __func__);
+		ret = verify_nickname(buffer);
+		fprintf(stdout, "%s verifynickname ret: %d\n", __func__, ret);
+		if (ret == 1) {
+			strcpy(buffer, "Duplicated name ");
+			strcat(buffer, "\n");
+			send(*cfd, buffer, strlen(buffer),0);
+			
+			close(*cfd);
+			FD_CLR(*cfd, allset);
+			*cfd = head->cfd;	/* select initiate cfd = -1 */
 
-			/* verify nickname */
-			ret = verify_nickname(buffer);
-			if (ret == 1) {
-				strcpy(buffer, "Duplicated name ");
-				strcat(buffer, "\n");
-				send(*cfd, buffer, strlen(buffer),0);
-				close(*cfd);
-				cl[i].cfd = -1;
-				client.cfd = -1;
-				break;
-			}
-			else {
-				/* save nickname to arrary if not exist */
-				strcpy(cl[i].nickname, buffer);
-
-				fprintf(stdout, "%s %s is online!\n", 
-						__func__, cl[i].nickname);
-
-				cl[i].cfd = *cfd;
-				client.cfd = *cfd;
-
-				/* broadcast oneline status */
-				strcat(buffer, " is online!\n");
-				broadcast(buffer, &server);
-				// bzero(buffer, sizeof(buffer));
-
-				break;
-			}	
-
-			fprintf(stdout, "%s loop i = %d\n", __func__, i);
+			ttl_conn--;
+			fprintf(stdout, "%s del cfd: %d done\n", 
+				__func__, *cfd);
+			break;
 		}
-	}
+		else if (ret == 0) {
+			/* append nickname to link if not exist */
+			fprintf(stdout, "%s %s is online!\n", 
+					__func__, buffer);
 
-	return i;
-}
+			client  = add_client(*cfd, buffer);
+			add_tail(&head, client);	
 
-static void client_request_func(int *ttl_conn, fd_set *rset, 
-		fd_set *allset, int *nready)
-{
+			print_list(head);
 
-	int i, sockfd, ret, recvlen;
-	char buffer[CHAT_BUFFER_LEN];
-
-	for(i=0; i<=*ttl_conn ; ++i) {
-		if((sockfd = cl[i].cfd) < 0)
-			continue;
-		if(FD_ISSET(sockfd , rset)) {
-
-			/*process client request*/
-			printf("\nreading the socket~~~ \n");
-
-			if((recvlen = recv(sockfd, buffer, sizeof(buffer), 
-							MSG_DONTWAIT)) <= 0) {
-
-				fprintf (stdout, "%s recvlen: %d\n", 
-						__func__, recvlen);
-
-				/* broadcast offline info */	
-
-				if ((strlen(cl[i].nickname) == 0) || 
-						(cl[i].nickname == "\n"))
-					break;
-
-				fprintf(stdout, 
-						"%s %s(HEX: %x) is offline!\n", 
-						__func__, cl[i].nickname, 
-						cl[i].nickname);
-
-				broadcast(strcat(cl[i].nickname, 
-							" is offline!\n"), 
-						&server);
-
-				/* reset nickname buffer after offline*/
-				bzero(cl[i].nickname, 
-						sizeof(cl[i].nickname));
-
-				close(sockfd);
-				FD_CLR(sockfd , allset);
-				cl[i].cfd = -1;
-				client.cfd = -1;
-			}
-			else {
-				if(strcmp(buffer, "\n") == 0)
-					continue;
-				fprintf(stdout, 
-						"%s cl[%d] %s send mesg: %s\n", 
-						__func__, i , cl[i].nickname, 
-						buffer);
-
-				strcat(buffer, cl[i].nickname);
-				strcat(buffer, ": ");
-				broadcast(buffer, &server);
-
-				if((ret = send(sockfd, buffer, recvlen,	
-						0)) != recvlen) {
-					printf("error write sockfd!\n");
-					break;
-				}
-			}
-			if(--nready <= 0)
-				fprintf(stdout, "%s nready: %d\n", 
-						__func__, nready);
+			/* broadcast oneline status */
+			strcat(buffer, " is online!\n");
+			broadcast(buffer, cfd);
 
 			break;
 		}
+
+		n = FD_SETSIZE;
+	}
+
+	fprintf(stdout, "%s ttl_conn=%d, n=%d\n", __func__, ttl_conn, n);
+
+	return ttl_conn;
+}
+
+static void client_request_func(fd_set *rset, fd_set *allset, int *nready)
+{
+
+	int sockfd, ret, recvlen;
+	char buffer[CHAT_BUFFER_LEN];
+	struct client *p;
+	struct client d;	/* delete */
+
+	p = head;
+	p = p->next;
+	while (p) {
+		if((sockfd = p->cfd) < 0) goto next;
+		if (!FD_ISSET(sockfd, rset)) goto next;
+
+		/*process client request*/
+		printf("\nreading the socket~~~ \n");
+
+		if((recvlen = recv(sockfd, buffer, sizeof(buffer), 0)) <= 0) {
+			fprintf (stdout, "%s recvlen: %d\n", 
+					__func__, recvlen);
+			
+			/* broadcast offline info */	
+			if ((strlen(p->nickname) == 0) || 
+				(strcmp(p->nickname, "\n") == 0) ) 
+				break;
+
+			fprintf(stdout, "%s %s is offline!\n", 
+				__func__, p->nickname );
+
+			broadcast(strcat(p->nickname, " is offline!\n"), 
+					&sockfd);
+
+			/* reset nickname buffer after offline*/
+			d.cfd = sockfd;
+			d.nickname = p->nickname;
+			ret = del_client(head, &d, 1);
+			if (ret == 0) goto next;
+
+			close(sockfd);
+			FD_CLR(sockfd, allset);
+
+			ttl_conn--;
+			fprintf(stdout, "%s ttl_conn:%d\n", __func__, ttl_conn);
+		}
+		else {
+			if(strcmp(buffer, "\n") == 0 || strlen(buffer) == 0)
+				goto next;
+			fprintf(stdout, "%s  %s send mesg: %s\n", 
+				__func__ , p->nickname, buffer);
+
+			strcat(buffer, p->nickname);
+			strcat(buffer, ": ");
+			broadcast(buffer, &p->cfd);
+
+			ret = send(sockfd, buffer, recvlen, 0);
+			if(ret != recvlen) {
+				fprintf(stderr, "error write sockfd!\n");
+				break;
+			}
+		}
+
+		if(--*nready <= 0) {
+			fprintf(stdout, "%s nready: %d\n", __func__, *nready);
+			break;
+		}
+
+next:
+		p = p->next;
 	}
 } 
 
@@ -224,22 +245,27 @@ static void *server_func(void *data)
 {
 
 	struct server_thread *t = (struct server_thread *)data;
+	struct client *p;
 
 	fd_set rset, allset;
-	int i, nready, cfd, maxfd, ttl_conn;
-	struct sockaddr_in caddr;
-	pthread_t id;
-	int ret;
+	int i, nready, cfd, maxfd;
+
+	
+	head = (struct client *)malloc(sizeof(*head));
+	if (!head)
+		fprintf(stderr, "\n %s mem alloc fails", __func__);
 
 	/* initiate select */
 	maxfd = server.sock;
-	ttl_conn = -1;
-	for(i=0 ; i<FD_SETSIZE ; ++i) {
-		cl[i].cfd = -1;
-	}
+
+	p = head;
+	p->cfd = -1;
 
 	FD_ZERO(&allset);
 	FD_SET(server.sock , &allset);
+
+
+	fprintf(stdout, "%s maxfd %d\n", __func__, maxfd);
 
 	while(1) {
 		rset = allset;
@@ -249,34 +275,38 @@ static void *server_func(void *data)
 				__func__, nready);
 
 		/* accept connections */
-		if(FD_ISSET(server.sock , &rset)) {
-			i = accept_conn_func(caddr, &cfd);
-			fprintf(stdout, "%s loop i = %d\n", __func__, i);
-
-			if(FD_SETSIZE == i) {
-				perror("too many connection.\n");
-				exit(1);
-			}
-
-			FD_SET(cfd , &allset);	
-
-			if(cfd > maxfd)
-				maxfd = cfd;
-			if(i > ttl_conn)
-				ttl_conn = i;
-
-			if(--nready < 0)
-				continue;
+		if(!FD_ISSET(server.sock , &rset)) {
+			/* process clients requests */
+			client_request_func(&rset, &allset, &nready);
+			usleep(10000);		
+			continue;
 		}
 
-		fprintf (stdout, "%s ttl_conn: %d\n", __func__, ttl_conn);
-
-		fprintf(stdout, "%s nready-after: %d\n", 
-				__func__, nready);
+		i = accept_conn_func(&cfd, &allset);
+		fprintf(stdout, "%s loop i = %d\n", __func__, i);
+		if(FD_SETSIZE == i) {
+			perror("too many connection.\n");
+			continue;
+		}
+		
+		FD_SET(cfd , &allset);	
+		if(cfd > maxfd)
+			maxfd = cfd;
+		if(--nready < 0)
+			break;
 
 		/* process clients requests */
-		client_request_func(&ttl_conn, &rset, &allset, &nready);
+		client_request_func(&rset, &allset, &nready);
+		usleep(10000);
 
+	}
+
+	/* release memory */
+	while(head) {
+		p = head;
+		head = head->next;
+		free(p->nickname);
+		free(p);
 	}
 
 	/* Tell the main thread to quit */
@@ -284,9 +314,8 @@ static void *server_func(void *data)
 	set_val(t);
 	wait_state(t, server_state_quit, 3);
 
+	return 0;
 }
-
-
 int start_server(void)
 {
 	int ret;
@@ -295,7 +324,7 @@ int start_server(void)
 	pthread_t id;
 
 	/* Server IP and port from config file */
-	ret=chat_server(&server);
+	ret = chat_server(&server);
 
 	/*(1) open socket*/
 	server.sock = socket(AF_INET , SOCK_STREAM , 0);
@@ -340,3 +369,4 @@ error:
 	return -EIO;
 
 }
+
